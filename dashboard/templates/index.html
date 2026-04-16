@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Traffic Management System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0e17;
+      color: #e8edf5;
+    }
+    .header {
+      background: linear-gradient(135deg, #0c1120, #131a2a);
+      padding: 16px 24px;
+      border-bottom: 1px solid #232b38;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .logo h1 { font-size: 1.4rem; }
+    .logo p { font-size: 0.7rem; color: #8f9bb3; }
+    .status-badge {
+      background: rgba(16, 185, 129, 0.15);
+      padding: 6px 16px;
+      border-radius: 40px;
+      font-size: 0.8rem;
+    }
+    .emergency-banner {
+      display: none;
+      background: rgba(239, 68, 68, 0.15);
+      border-bottom: 2px solid #ef4444;
+      padding: 12px;
+      text-align: center;
+      font-weight: bold;
+      color: #ef4444;
+    }
+    .dashboard {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+    }
+    .feeds-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .feed-card {
+      background: #11161f;
+      border: 1px solid #232b38;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+    }
+    .feed-card.active-green { border-color: #10b981; box-shadow: 0 0 20px rgba(16,185,129,0.2); }
+    .feed-header {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 10;
+    }
+    .lane-badge {
+      background: rgba(0,0,0,0.7);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+    .signal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .feed-actions {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 10;
+    }
+    .upload-btn {
+      background: rgba(0,0,0,0.7);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+    .upload-btn input { display: none; }
+    .feed-card img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      display: block;
+    }
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .panel {
+      background: #11161f;
+      border: 1px solid #232b38;
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .panel-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: #8f9bb3;
+      margin-bottom: 12px;
+    }
+    .lights-container {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .light-unit { text-align: center; }
+    .light-stack {
+      background: #0a0e17;
+      padding: 8px;
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .bulb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #1a202c;
+    }
+    .bulb.on-red { background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+    .bulb.on-yellow { background: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,0.3); }
+    .bulb.on-green { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.3); }
+    .stats-table { width: 100%; font-size: 0.75rem; border-collapse: collapse; }
+    .stats-table th, .stats-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #232b38; }
+    .signal-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.65rem;
+      font-weight: bold;
+    }
+    .signal-badge.GREEN { background: rgba(16,185,129,0.2); color: #10b981; }
+    .signal-badge.YELLOW { background: rgba(245,158,11,0.2); color: #f59e0b; }
+    .signal-badge.RED { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .prediction-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .prediction-card {
+      background: #161e2a;
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+    .prediction-value { font-size: 1.5rem; font-weight: bold; }
+    .trend-up { color: #10b981; }
+    .trend-down { color: #ef4444; }
+    .chatbot-panel {
+      background: #11161f;
+      border: 1px solid #232b38;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 360px;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .message {
+      max-width: 85%;
+      padding: 8px 12px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: #3b82f6;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant {
+      align-self: flex-start;
+      background: #161e2a;
+      border-bottom-left-radius: 4px;
+    }
+    .chat-input-area {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid #232b38;
+    }
+    .chat-input-area input {
+      flex: 1;
+      background: #161e2a;
+      border: 1px solid #232b38;
+      border-radius: 24px;
+      padding: 8px 16px;
+      color: white;
+    }
+    .chat-input-area button {
+      background: #3b82f6;
+      border: none;
+      border-radius: 24px;
+      padding: 8px 20px;
+      color: white;
+      cursor: pointer;
+    }
+    .chart-container { height: 200px; }
+    @media (max-width: 900px) {
+      .dashboard { grid-template-columns: 1fr; }
+      .feeds-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <h1>🚦 Smart Traffic Control</h1>
+    <p>AI-Powered · Real-Time · Predictive</p>
+  </div>
+  <div class="status-badge" id="status-badge">● LIVE</div>
+</header>
+
+<div id="emergency-banner" class="emergency-banner">
+  🚨 EMERGENCY OVERRIDE — Lane <span id="emergency-lane">—</span> has PRIORITY 🚑
+</div>
+
+<div class="dashboard">
+  <div class="feeds-grid">
+    <div class="feed-card" id="feed-north">
+      <div class="feed-header"><span class="lane-badge">⬆️ NORTH</span><span class="signal-dot" id="dot-north"></span></div>
+      <div class="feed-actions"><label class="upload-btn">📷 Upload<input type="file" accept="image/*" onchange="uploadImage(event,'north')" /></label></div>
+      <img src="/feed/north" alt="North lane" />
+    </div>
+    <div class="feed-card" id="feed-south">
+      <div class="feed-header"><span class="lane-badge">⬇️ SOUTH</span><span class="signal-dot" id="dot-south"></span></div>
+      <div class="feed-actions"><label class="upload-btn">📷 Upload<input type="file" accept="image/*" onchange="uploadImage(event,'south')" /></label></div>
+      <img src="/feed/south" alt="South lane" />
+    </div>
+    <div class="feed-card" id="feed-east">
+      <div class="feed-header"><span class="lane-badge">➡️ EAST</span><span class="signal-dot" id="dot-east"></span></div>
+      <div class="feed-actions"><label class="upload-btn">📷 Upload<input type="file" accept="image/*" onchange="uploadImage(event,'east')" /></label></div>
+      <img src="/feed/east" alt="East lane" />
+    </div>
+    <div class="feed-card" id="feed-west">
+      <div class="feed-header"><span class="lane-badge">⬅️ WEST</span><span class="signal-dot" id="dot-west"></span></div>
+      <div class="feed-actions"><label class="upload-btn">📷 Upload<input type="file" accept="image/*" onchange="uploadImage(event,'west')" /></label></div>
+      <img src="/feed/west" alt="West lane" />
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="panel">
+      <div class="panel-title">🚦 SIGNAL STATUS</div>
+      <div class="lights-container">
+        <div class="light-unit" id="light-north"><div class="light-stack"><div class="bulb" data-color="red"></div><div class="bulb" data-color="yellow"></div><div class="bulb" data-color="green"></div></div><div>NORTH</div></div>
+        <div class="light-unit" id="light-south"><div class="light-stack"><div class="bulb" data-color="red"></div><div class="bulb" data-color="yellow"></div><div class="bulb" data-color="green"></div></div><div>SOUTH</div></div>
+        <div class="light-unit" id="light-east"><div class="light-stack"><div class="bulb" data-color="red"></div><div class="bulb" data-color="yellow"></div><div class="bulb" data-color="green"></div></div><div>EAST</div></div>
+        <div class="light-unit" id="light-west"><div class="light-stack"><div class="bulb" data-color="red"></div><div class="bulb" data-color="yellow"></div><div class="bulb" data-color="green"></div></div><div>WEST</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">📊 LANE STATISTICS</div>
+      <table class="stats-table"><thead><tr><th>Lane</th><th>Count</th><th>Score</th><th>Wait</th><th>Signal</th></tr></thead>
+      <tbody id="stats-body">
+        <tr id="row-north"><td>NORTH</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+        <tr id="row-south"><td>SOUTH</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+        <tr id="row-east"><td>EAST</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+        <tr id="row-west"><td>WEST</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">🤖 AI PREDICTIONS</div>
+      <div class="prediction-grid" id="predictions-grid">Loading...</div>
+    </div>
+
+    <div class="chatbot-panel">
+      <div class="panel-title" style="padding: 12px 12px 0;">💬 TRAFFIC ASSISTANT</div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="message assistant">🤖 Ask me about traffic status, vehicle counts, or emergencies!</div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Ask something..." onkeypress="if(event.key==='Enter') sendMessage()" />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">📈 DENSITY TREND</div>
+      <div class="chart-container"><canvas id="density-chart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LANES = ['north','south','east','west'];
+const COLORS = { north:'#3b82f6', south:'#8b5cf6', east:'#f59e0b', west:'#10b981' };
+let tick = 0;
+
+const ctx = document.getElementById('density-chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: { labels: [], datasets: LANES.map(l => ({ label: l.toUpperCase(), data: [], borderColor: COLORS[l], fill: true, tension: 0.3 })) },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+
+async function pollStatus() {
+  try {
+    const res = await fetch('/status');
+    const data = await res.json();
+    updateUI(data);
+  } catch(e) { console.error(e); }
+}
+
+function updateUI(data) {
+  const lanes = data.lanes;
+  document.getElementById('status-badge').innerHTML = `● ${data.phase || 'GREEN'}`;
+  const banner = document.getElementById('emergency-banner');
+  if (data.emergency_active) {
+    banner.style.display = 'block';
+    document.getElementById('emergency-lane').textContent = (data.emergency_lane || 'unknown').toUpperCase();
+  } else { banner.style.display = 'none'; }
+
+  LANES.forEach(name => {
+    const info = lanes[name];
+    if (!info) return;
+    const row = document.getElementById(`row-${name}`);
+    if (row) {
+      row.cells[1].textContent = info.count;
+      row.cells[2].textContent = info.score?.toFixed(1) || 0;
+      row.cells[3].textContent = info.waiting_seconds || 0;
+      row.cells[4].innerHTML = `<span class="signal-badge ${info.signal}">${info.signal}</span>`;
+    }
+    const dot = document.getElementById(`dot-${name}`);
+    if (dot) dot.style.background = info.signal === 'GREEN' ? '#10b981' : (info.signal === 'YELLOW' ? '#f59e0b' : '#ef4444');
+    const card = document.getElementById(`feed-${name}`);
+    if (card) card.classList.toggle('active-green', info.signal === 'GREEN');
+    const lightUnit = document.getElementById(`light-${name}`);
+    if (lightUnit) {
+      const bulbs = lightUnit.querySelectorAll('.bulb');
+      bulbs.forEach(b => {
+        const c = b.dataset.color;
+        b.className = 'bulb';
+        if ((info.signal === 'RED' && c === 'red') || (info.signal === 'YELLOW' && c === 'yellow') || (info.signal === 'GREEN' && c === 'green'))
+          b.classList.add(`on-${c}`);
+      });
+    }
+  });
+  tick++;
+  chart.data.labels.push(tick);
+  if (chart.data.labels.length > 30) chart.data.labels.shift();
+  LANES.forEach((name,i) => {
+    chart.data.datasets[i].data.push((lanes[name]?.count || 0));
+    if (chart.data.datasets[i].data.length > 30) chart.data.datasets[i].data.shift();
+  });
+  chart.update();
+}
+
+async function loadPredictions() {
+  const grid = document.getElementById('predictions-grid');
+  const preds = [];
+  for (const lane of LANES) {
+    try {
+      const res = await fetch(`/api/predict/${lane}`);
+      if (res.ok) preds.push({ lane, data: await res.json() });
+    } catch(e) {}
+  }
+  if (preds.length) {
+    grid.innerHTML = preds.map(p => `
+      <div class="prediction-card">
+        <div>${p.lane.toUpperCase()}</div>
+        <div class="prediction-value">${p.data.predicted_vehicles}</div>
+        <div class="${p.data.trend.trend === 'increasing' ? 'trend-up' : (p.data.trend.trend === 'decreasing' ? 'trend-down' : '')}">
+          ${p.data.trend.trend === 'increasing' ? '📈' : (p.data.trend.trend === 'decreasing' ? '📉' : '➡️')} ${Math.abs(p.data.trend.change_rate).toFixed(1)}
+        </div>
+        <div style="font-size:0.65rem">${Math.round(p.data.prediction_confidence*100)}% conf</div>
+      </div>
+    `).join('');
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  const container = document.getElementById('chat-messages');
+  container.innerHTML += `<div class="message user">${msg}</div>`;
+  input.value = '';
+  container.scrollTop = container.scrollHeight;
+  try {
+    const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+    const data = await res.json();
+    container.innerHTML += `<div class="message assistant">🤖 ${data.response}</div>`;
+    container.scrollTop = container.scrollHeight;
+  } catch(e) {
+    container.innerHTML += `<div class="message assistant">🤖 Sorry, I encountered an error.</div>`;
+  }
+}
+
+async function uploadImage(event, lane) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('image', file);
+  await fetch(`/upload/${lane}`, { method: 'POST', body: formData });
+  event.target.value = '';
+}
+
+setInterval(pollStatus, 1000);
+setInterval(loadPredictions, 5000);
+pollStatus();
+loadPredictions();
+</script>
+</body>
+</html>

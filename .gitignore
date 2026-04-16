@@ -1,0 +1,22 @@
+# Environment files (DO NOT commit actual .env files)
+.env
+.env.local
+.env.production
+
+# Keep example files for documentation
+!.env.example
+!.env.template
+
+# Python virtual environment (this is your (.env) folder!)
+.env/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.so
+
+# IDE
+.vscode/
+.idea/
