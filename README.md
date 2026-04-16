@@ -48,8 +48,8 @@ It combines:
 
 # 🏗️ Architecture  
 
-```mermaid
-flowchart TD
+```
+![Architecture](./architecture_diagram.png)
 A[Camera/CCTV] --> B[YOLOv8 Detection]
 B --> C[Traffic Processing Engine]
 C --> D[API Layer (FastAPI/Flask)]
