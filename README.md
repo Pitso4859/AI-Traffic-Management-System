@@ -49,7 +49,7 @@ It combines:
 # 🏗️ Architecture  
 
 ```
-![Architecture](.././architecture_diagram.png)
+![Architecture](architecture_diagram.png)
 A[Camera/CCTV] --> B[YOLOv8 Detection]
 B --> C[Traffic Processing Engine]
 C --> D[API Layer (FastAPI/Flask)]
